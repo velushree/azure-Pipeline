@@ -1,0 +1,40 @@
+{
+	"name": "loopDetails",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureDataLake",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"Directory": {
+				"type": "string"
+			},
+			"SubDirectory": {
+				"type": "string"
+			},
+			"file": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().file",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().SubDirectory",
+					"type": "Expression"
+				},
+				"fileSystem": {
+					"value": "@dataset().Directory",
+					"type": "Expression"
+				}
+			}
+		},
+		"schema": {}
+	}
+}
