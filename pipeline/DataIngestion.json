@@ -85,7 +85,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT * FROM ', \n    item().schema, '.', item().table,\n    ' WHERE ', \n    item().cdc_col, ' > ''', activity('GetCdcDetails').output.value[0].cdc, ''''\n)",
+										"value": "@concat(\n    'SELECT * FROM ',\n    item().schema, '.', item().table\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -137,6 +137,8 @@
 						{
 							"name": "GetCdcDetails",
 							"type": "Lookup",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
 							"dependsOn": [],
 							"policy": {
 								"timeout": "0.12:00:00",
@@ -188,6 +190,25 @@
 									"value": "@utcNow()",
 									"type": "Expression"
 								}
+							}
+						},
+						{
+							"name": "Script1",
+							"type": "Script",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"scripts": [],
+								"scriptBlockExecutionTimeout": "02:00:00"
 							}
 						}
 					]
