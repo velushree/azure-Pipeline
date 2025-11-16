@@ -1,5 +1,5 @@
 {
-	"name": "loopDetails",
+	"name": "DynamicJson",
 	"properties": {
 		"linkedServiceName": {
 			"referenceName": "AzureDataLake",

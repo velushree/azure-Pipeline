@@ -3,24 +3,6 @@
 	"properties": {
 		"activities": [
 			{
-				"name": "AzureToDatalake",
-				"type": "Copy",
-				"state": "Inactive",
-				"onInactiveMarkAs": "Succeeded",
-				"dependsOn": [],
-				"policy": {
-					"timeout": "0.12:00:00",
-					"retry": 0,
-					"retryIntervalInSeconds": 30,
-					"secureOutput": false,
-					"secureInput": false
-				},
-				"userProperties": [],
-				"typeProperties": {
-					"enableStaging": false
-				}
-			},
-			{
 				"name": "GetLoopDetails",
 				"type": "Lookup",
 				"dependsOn": [],
@@ -45,7 +27,7 @@
 						}
 					},
 					"dataset": {
-						"referenceName": "loopDetails",
+						"referenceName": "DynamicJson",
 						"type": "DatasetReference",
 						"parameters": {
 							"Directory": "bronze",
@@ -57,10 +39,97 @@
 				}
 			},
 			{
-				"name": "ForEach1",
+				"name": "loopThroughTables",
 				"type": "ForEach",
-				"dependsOn": [],
-				"userProperties": []
+				"dependsOn": [
+					{
+						"activity": "GetLoopDetails",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('GetLoopDetails').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "AzureToDatalake",
+							"type": "Copy",
+							"state": "Inactive",
+							"onInactiveMarkAs": "Succeeded",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\r\n    'SELECT * FROM ', \r\n    item().schema, '.', item().table,\r\n    ' WHERE ', \r\n    item().cdc_col, ' > ''', item().from_date, ''''\r\n)\r\n",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "dataset_AzureDB",
+									"type": "DatasetReference"
+								}
+							]
+						},
+						{
+							"name": "GetCdcDetails",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DynamicJson",
+									"type": "DatasetReference",
+									"parameters": {
+										"Directory": "bronze",
+										"SubDirectory": {
+											"value": "cdc/@{item().table}",
+											"type": "Expression"
+										},
+										"file": "cdc.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						}
+					]
+				}
 			}
 		],
 		"annotations": []
