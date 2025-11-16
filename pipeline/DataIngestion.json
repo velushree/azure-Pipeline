@@ -59,9 +59,20 @@
 						{
 							"name": "AzureToDatalake",
 							"type": "Copy",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "GetCdcDetails",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "CurrentTime",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "0.12:00:00",
 								"retry": 0,
@@ -74,18 +85,52 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\r\n    'SELECT * FROM ', \r\n    item().schema, '.', item().table,\r\n    ' WHERE ', \r\n    item().cdc_col, ' > ''', item().from_date, ''''\r\n)\r\n",
+										"value": "@concat(\n    'SELECT * FROM ', \n    item().schema, '.', item().table,\n    ' WHERE ', \n    item().cdc_col, ' > ''', activity('GetCdcDetails').output.value[0].cdc, ''''\n)",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
 									"partitionOption": "None"
 								},
-								"enableStaging": false
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
 							},
 							"inputs": [
 								{
 									"referenceName": "dataset_AzureDB",
 									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "dynamic_paquert",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "bronze",
+										"folder": {
+											"value": "@activity('GetCdcDetails').output.value[0].table",
+											"type": "Expression"
+										},
+										"file": {
+											"value": "@concat(activity('GetCdcDetails').output.value[0].table,variables('time'))",
+											"type": "Expression"
+										}
+									}
 								}
 							]
 						},
@@ -127,11 +172,33 @@
 								},
 								"firstRowOnly": false
 							}
+						},
+						{
+							"name": "CurrentTime",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"policy": {
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
+							}
 						}
 					]
 				}
 			}
 		],
+		"variables": {
+			"time": {
+				"type": "String"
+			}
+		},
 		"annotations": []
 	}
 }
