@@ -57,9 +57,61 @@
 					},
 					"activities": [
 						{
+							"name": "GetCdcDetails",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": true,
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "DynamicJson",
+									"type": "DatasetReference",
+									"parameters": {
+										"Directory": "bronze",
+										"SubDirectory": {
+											"value": "cdc/@{item().table}",
+											"type": "Expression"
+										},
+										"file": "cdc.json"
+									}
+								},
+								"firstRowOnly": false
+							}
+						},
+						{
 							"name": "AzureToDatalake",
 							"type": "Copy",
-							"dependsOn": [],
+							"dependsOn": [
+								{
+									"activity": "GetCdcDetails",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								},
+								{
+									"activity": "CurrentTimeStamp",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
 							"policy": {
 								"timeout": "0.12:00:00",
 								"retry": 0,
@@ -72,7 +124,7 @@
 								"source": {
 									"type": "AzureSqlSource",
 									"sqlReaderQuery": {
-										"value": "@concat(\n    'SELECT * FROM ',\n    item().schema, '.', item().table\n)",
+										"value": "select * from @{item().schema}.@{item().table} where @{item().cdc_col} > '@{activity('GetCdcDetails').output.value[0].cdc}'",
 										"type": "Expression"
 									},
 									"queryTimeout": "02:00:00",
@@ -110,11 +162,11 @@
 									"parameters": {
 										"container": "bronze",
 										"folder": {
-											"value": "@activity('GetCdcDetails').output.value[0].table",
+											"value": "cdc/@{item().table}",
 											"type": "Expression"
 										},
 										"file": {
-											"value": "@concat(activity('GetCdcDetails').output.value[0].table,variables('time'))",
+											"value": "@concat(item().table,variables('time'))",
 											"type": "Expression"
 										}
 									}
@@ -122,44 +174,20 @@
 							]
 						},
 						{
-							"name": "GetCdcDetails",
-							"type": "Lookup",
-							"state": "Inactive",
-							"onInactiveMarkAs": "Succeeded",
+							"name": "CurrentTimeStamp",
+							"type": "SetVariable",
 							"dependsOn": [],
 							"policy": {
-								"timeout": "0.12:00:00",
-								"retry": 0,
-								"retryIntervalInSeconds": 30,
 								"secureOutput": false,
 								"secureInput": false
 							},
 							"userProperties": [],
 							"typeProperties": {
-								"source": {
-									"type": "JsonSource",
-									"storeSettings": {
-										"type": "AzureBlobFSReadSettings",
-										"recursive": true,
-										"enablePartitionDiscovery": false
-									},
-									"formatSettings": {
-										"type": "JsonReadSettings"
-									}
-								},
-								"dataset": {
-									"referenceName": "DynamicJson",
-									"type": "DatasetReference",
-									"parameters": {
-										"Directory": "bronze",
-										"SubDirectory": {
-											"value": "cdc/@{item().table}",
-											"type": "Expression"
-										},
-										"file": "cdc.json"
-									}
-								},
-								"firstRowOnly": false
+								"variableName": "time",
+								"value": {
+									"value": "@utcNow()",
+									"type": "Expression"
+								}
 							}
 						}
 					]
