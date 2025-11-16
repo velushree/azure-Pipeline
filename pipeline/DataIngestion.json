@@ -227,7 +227,7 @@
 												"parameters": {
 													"Directory": "bronze",
 													"SubDirectory": {
-														"value": "@item().name",
+														"value": "@item().table",
 														"type": "Expression"
 													},
 													"file": {
