@@ -1,6 +1,222 @@
 {
 	"name": "checkFolder",
 	"properties": {
+		"activities": [
+			{
+				"name": "folderNames",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "DynamicJson",
+						"type": "DatasetReference",
+						"parameters": {
+							"Directory": "bronze",
+							"SubDirectory": "TableFolder",
+							"file": "folders.json"
+						}
+					}
+				}
+			},
+			{
+				"name": "ForEach1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "folderNames",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('folderNames').output.firstRow.folders",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "folderExistence",
+							"type": "GetMetadata",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "validateFolder_json",
+									"type": "DatasetReference",
+									"parameters": {
+										"repo": "bronze",
+										"folder": {
+											"value": "@item()",
+											"type": "Expression"
+										}
+									}
+								},
+								"fieldList": [
+									"exists"
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "JsonReadSettings"
+								}
+							}
+						},
+						{
+							"name": "existenceValidation",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "folderExistence",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@equals(activity('folderExistence').output.exists, true)",
+									"type": "Expression"
+								},
+								"ifFalseActivities": [
+									{
+										"name": "CreateNewFolder",
+										"type": "Copy",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "JsonSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "JsonReadSettings"
+												}
+											},
+											"sink": {
+												"type": "JsonSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "JsonWriteSettings"
+												}
+											},
+											"enableStaging": false
+										},
+										"inputs": [
+											{
+												"referenceName": "DynamicJson",
+												"type": "DatasetReference",
+												"parameters": {
+													"Directory": "bronze",
+													"SubDirectory": "TableFolder",
+													"file": "empty.json"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "DynamicJson",
+												"type": "DatasetReference",
+												"parameters": {
+													"Directory": "bronze",
+													"SubDirectory": {
+														"value": "@item()",
+														"type": "Expression"
+													},
+													"file": "empty.json"
+												}
+											}
+										]
+									},
+									{
+										"name": "removeEmptyFile",
+										"type": "Delete",
+										"dependsOn": [
+											{
+												"activity": "CreateNewFolder",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"dataset": {
+												"referenceName": "DynamicJson",
+												"type": "DatasetReference",
+												"parameters": {
+													"Directory": "bronze",
+													"SubDirectory": {
+														"value": "@item()",
+														"type": "Expression"
+													},
+													"file": "empty.json"
+												}
+											},
+											"enableLogging": false,
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
 		"annotations": []
 	}
 }
