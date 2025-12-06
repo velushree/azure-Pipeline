@@ -38,7 +38,7 @@
 				}
 			},
 			{
-				"name": "ForEach1",
+				"name": "IterateFolders",
 				"type": "ForEach",
 				"dependsOn": [
 					{
